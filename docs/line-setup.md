@@ -48,7 +48,7 @@ LINE_SLOW_RESPONSE_ENABLED=true           # 45s 超で reply→push 自動切替
 LINE_SLOW_RESPONSE_THRESHOLD_MS=45000     # 「考え中」通知 + Push 切替の閾値
 # Optional: Session 境界 (時間ベース + コマンド)
 LINE_IDLE_RESET_ENABLED=true              # idle 一定時間で session 自動切替
-LINE_IDLE_RESET_HOURS=4                   # 何時間 idle で切るか (小数可、0 で無効)
+LINE_IDLE_RESET_HOURS=12                  # 何時間 idle で切るか (小数可、0 で無効)
 # LINE_RESET_TEXT_PATTERNS=/reset,リセット,最初から,はじめから   # 上書きする場合のみ
 ```
 
@@ -111,11 +111,11 @@ Push API は LINE 公式アカウントの個人プランで月 200 通まで無
 
 LINE には Slack の「スレッド」「New チャンネル」や Discord の「New ボタン」のような明示的な会話境界が無く、reply フローが永続的に 1 本の session に積み続けると context window が肥大化したり、トピックが混ざる。xangi は時間ベース + コマンドベースの 2 段で session を切る:
 
-### 1. Idle session reset (default ON、4h)
+### 1. Idle session reset (default ON、12h)
 
-直前の発話から `LINE_IDLE_RESET_HOURS` (default `4` 時間) 以上経過していたら、次のメッセージ到着時に既存 session を `archiveSession()` で archive し、新規 session を発番する。`logs/sessions/<sessionId>.jsonl` は残るため過去履歴は失われない。
+直前の発話から `LINE_IDLE_RESET_HOURS` (default `12` 時間) 以上経過していたら、次のメッセージ到着時に既存 session を `archiveSession()` で archive し、新規 session を発番する。`logs/sessions/<sessionId>.jsonl` は残るため過去履歴は失われない。
 
-- 子どもの会話パターン (学校・就寝・食事クラスタ) は数時間単位で自然に分かれるので 4h で切るとちょうど良い境界になる
+- 半日以上空いた会話を別セッションとして扱う
 - 小数指定可 (例: `LINE_IDLE_RESET_HOURS=0.5` で 30 分、テスト時に便利)
 - `LINE_IDLE_RESET_ENABLED=false` で完全に無効化 (永続 1 session のまま)
 

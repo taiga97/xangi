@@ -1,5 +1,56 @@
-import { describe, it, expect } from 'vitest';
-import { snapLoadingSeconds, isResetCommand, hasSessionGoneIdle } from '../src/line.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import {
+  snapLoadingSeconds,
+  isResetCommand,
+  hasSessionGoneIdle,
+  buildLineRunOptions,
+} from '../src/line.js';
+import {
+  clearSessions,
+  ensureSession,
+  initSessions,
+  setProviderSessionId,
+} from '../src/sessions.js';
+
+describe('buildLineRunOptions', () => {
+  let testDir: string;
+
+  beforeEach(() => {
+    testDir = mkdtempSync(join(tmpdir(), 'xangi-line-test-'));
+    initSessions(testDir);
+  });
+
+  afterEach(() => {
+    clearSessions();
+    rmSync(testDir, { recursive: true, force: true });
+  });
+
+  it('resumes the provider session stored for the LINE user context', () => {
+    const contextKey = 'line:U123';
+    const appSessionId = ensureSession(contextKey, { platform: 'line' });
+    setProviderSessionId(appSessionId, 'provider-session-1', 'codex');
+
+    expect(buildLineRunOptions(contextKey, appSessionId)).toEqual({
+      sessionId: 'provider-session-1',
+      channelId: contextKey,
+      appSessionId,
+    });
+  });
+
+  it('starts without a provider session only on the first turn', () => {
+    const contextKey = 'line:U123';
+    const appSessionId = ensureSession(contextKey, { platform: 'line' });
+
+    expect(buildLineRunOptions(contextKey, appSessionId)).toEqual({
+      sessionId: undefined,
+      channelId: contextKey,
+      appSessionId,
+    });
+  });
+});
 
 describe('snapLoadingSeconds', () => {
   it('returns default (60) when undefined', () => {
