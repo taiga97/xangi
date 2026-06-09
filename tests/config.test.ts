@@ -43,6 +43,26 @@ describe('config', () => {
     expect(config.discord.allowedUsers).toContain('123456789');
   });
 
+  it('should default LINE idle session reset to 12 hours', async () => {
+    process.env.DISCORD_TOKEN = 'test-token';
+    delete process.env.LINE_IDLE_RESET_HOURS;
+
+    const { loadConfig } = await import('../src/config.js');
+    const config = loadConfig();
+
+    expect(config.line.idleResetHours).toBe(12);
+  });
+
+  it('should allow overriding the LINE idle session reset threshold', async () => {
+    process.env.DISCORD_TOKEN = 'test-token';
+    process.env.LINE_IDLE_RESET_HOURS = '6.5';
+
+    const { loadConfig } = await import('../src/config.js');
+    const config = loadConfig();
+
+    expect(config.line.idleResetHours).toBe(6.5);
+  });
+
   it('should default to claude-code backend', async () => {
     process.env.DISCORD_TOKEN = 'test-token';
     delete process.env.AGENT_BACKEND;

@@ -10,8 +10,16 @@
  */
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
 import { LineBotClient, validateSignature, type webhook } from '@line/bot-sdk';
-import type { AgentRunner } from './agent-runner.js';
-import { ensureSession, getActiveSessionId, getSessionEntry, archiveSession } from './sessions.js';
+import type { AgentRunner, RunOptions, RunResult } from './agent-runner.js';
+import {
+  archiveSession,
+  ensureSession,
+  getActiveSessionId,
+  getSession,
+  getSessionEntry,
+  incrementMessageCount,
+  setProviderSessionId,
+} from './sessions.js';
 import { threadIdFor, turnIdFor } from './events-emitter.js';
 import { runWithBubbleEvents } from './bubble-events-runner.js';
 
@@ -30,8 +38,8 @@ const LINE_LOADING_SECONDS_DEFAULT = 60;
 const LINE_SLOW_RESPONSE_THRESHOLD_DEFAULT_MS = 45000;
 const SLOW_RESPONSE_NOTICE_TEXT = '🤔 ちょっと待ってね、考えてる…';
 
-// Idle session reset の default 閾値 (子どもの会話クラスタを自然に分ける程度)
-const LINE_IDLE_RESET_HOURS_DEFAULT = 4;
+// Idle session reset の default 閾値
+const LINE_IDLE_RESET_HOURS_DEFAULT = 12;
 
 // Reset コマンドのテキストパターン (大文字小文字 / 前後空白を吸収するため小文字 trim 済の形で持つ)
 // メイン境界は idle reset (時間ベース)、コマンドは「明示的にリセットしたい」用の保険なので
@@ -72,6 +80,19 @@ export function hasSessionGoneIdle(
   const last = Date.parse(lastActivityIso);
   if (!Number.isFinite(last)) return false;
   return now - last >= idleMs;
+}
+
+/**
+ * LINE の app session に紐づく provider session を次ターンへ引き継ぐ。
+ * channelId/appSessionId だけでは非 persistent runner が会話を再開できないため、
+ * sessions.json に保存された providerSessionId を明示的に渡す。
+ */
+export function buildLineRunOptions(contextKey: string, appSessionId: string): RunOptions {
+  return {
+    sessionId: getSession(contextKey),
+    channelId: contextKey,
+    appSessionId,
+  };
 }
 
 /**
@@ -116,7 +137,7 @@ export interface LineBotOptions {
   slowResponseThresholdMs?: number;
   /** Idle session reset (default: true)。一定時間 idle で次の発話時に session 自動切替 */
   idleResetEnabled?: boolean;
-  /** Idle reset の閾値時間 (default: 4 時間) */
+  /** Idle reset の閾値時間 (default: 12 時間) */
   idleResetHours?: number;
   /** Reset コマンドのテキストパターン (default: 規定パターン)。空配列を渡すと検出無効 */
   resetTextPatterns?: readonly string[];
@@ -368,7 +389,7 @@ async function handleEvent(event: webhook.Event, ctx: HandlerContext): Promise<v
   }
 
   const startTime = Date.now();
-  let runResult: { result?: string } | null = null;
+  let runResult: RunResult | null = null;
   let runError: unknown = null;
 
   try {
@@ -383,8 +404,12 @@ async function handleEvent(event: webhook.Event, ctx: HandlerContext): Promise<v
         userText: text,
       },
       {},
-      { channelId: contextKey, appSessionId }
+      buildLineRunOptions(contextKey, appSessionId)
     );
+    if (runResult.sessionId) {
+      setProviderSessionId(appSessionId, runResult.sessionId);
+    }
+    incrementMessageCount(appSessionId);
   } catch (err) {
     runError = err;
     console.error('[xangi-line] run failed:', err);

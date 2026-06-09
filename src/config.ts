@@ -107,10 +107,10 @@ export interface Config {
      */
     idleResetEnabled?: boolean;
     /**
-     * Idle reset の閾値時間 (default: 4 時間)。
+     * Idle reset の閾値時間 (default: 12 時間)。
      * 直前の発話から N 時間以上経過していたら、新メッセージ到着時に既存 session を
      * archive して新規発番する (会話履歴は logs/sessions/*.jsonl に残る)。
-     * 子どもの会話パターン (学校・就寝・食事クラスタ) を自然に分けるため 4h を default に。
+     * 半日以上空いた会話を別セッションとして扱う。
      */
     idleResetHours?: number;
     /**
@@ -304,7 +304,7 @@ export function loadConfig(): Config {
       idleResetEnabled: process.env.LINE_IDLE_RESET_ENABLED !== 'false',
       idleResetHours: process.env.LINE_IDLE_RESET_HOURS
         ? parseFloat(process.env.LINE_IDLE_RESET_HOURS)
-        : 4,
+        : 12,
       resetTextPatterns: process.env.LINE_RESET_TEXT_PATTERNS
         ? process.env.LINE_RESET_TEXT_PATTERNS.split(',')
             .map((s) => s.trim())

@@ -112,7 +112,7 @@ LINE は Slack のスレッドや Discord の New ボタンに相当する明示
 LINE には Slack の「スレッド」や Discord の「New ボタン」のような明示的な session 境界 UI が存在しないため、xangi は時間ベース + コマンドベースの 2 段で session を切り替える:
 
 1. **Reset コマンド検出**: `handleEvent` で allowlist 通過直後、Loading animation や Runner 起動より前に `isResetCommand(text, patterns)` で完全一致判定 (大文字小文字無視 + 前後空白 strip)。一致したら `archiveSession()` + `ensureSession()` で新規発番、`replyMessage` で「最初からお話するね！何かあった？」を即返して return (Runner 起動なし)。default パターンは曖昧さの無い slash 形式 3 つ (`/reset` `/new` `/clear`) に絞る。メイン境界は idle reset (時間ベース)、コマンドは明示リセット用の保険という位置付け。日本語自然言語パターンは「リセットってどういう意味？」「最初からお話したい」等との誤発火境界が曖昧なため default から外し、必要なら `LINE_RESET_TEXT_PATTERNS` CSV で個別追加できる設計。
-2. **Idle session reset**: reset コマンドでない通常メッセージで、現 session の `updatedAt` から `LINE_IDLE_RESET_HOURS` (default 4h) 以上経過していたら `hasSessionGoneIdle()` で true → `archiveSession()` してから `ensureSession()` で新規発番。子どもの会話は学校・就寝・食事クラスタで自然に分かれるので 4h で切ると良い境界になる。`logs/sessions/*.jsonl` は archive 後も残るので過去履歴は失われない。
+2. **Idle session reset**: reset コマンドでない通常メッセージで、現 session の `updatedAt` から `LINE_IDLE_RESET_HOURS` (default 12h) 以上経過していたら `hasSessionGoneIdle()` で true → `archiveSession()` してから `ensureSession()` で新規発番。半日以上空いた会話を別セッションとして扱う。`logs/sessions/*.jsonl` は archive 後も残るので過去履歴は失われない。
 
 両機能とも `LINE_IDLE_RESET_ENABLED=false` / `LINE_RESET_TEXT_PATTERNS=` で個別に無効化可能。Rich Menu のボタン bind と組み合わせると、「最初から話す」ボタン押下→reset テキスト送信→reset コマンド検出経路でハンドリング、という統合になる。
 

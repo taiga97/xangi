@@ -44,7 +44,7 @@ LINE_SLOW_RESPONSE_ENABLED=true           # reply→push auto-switch after slow 
 LINE_SLOW_RESPONSE_THRESHOLD_MS=45000     # threshold for "still thinking" notice + Push fallback
 # Optional: Session boundaries (time-based + commands)
 LINE_IDLE_RESET_ENABLED=true              # auto-switch session after idle period
-LINE_IDLE_RESET_HOURS=4                   # idle threshold in hours (decimal allowed, 0 disables)
+LINE_IDLE_RESET_HOURS=12                  # idle threshold in hours (decimal allowed, 0 disables)
 # LINE_RESET_TEXT_PATTERNS=/reset,リセット,最初から,はじめから   # override default patterns
 ```
 
@@ -105,11 +105,11 @@ The Push API is free for the first 200 messages per month on personal Official A
 
 LINE has no explicit conversation boundaries like Slack's threads or Discord's "new chat" button. If every message reuses the same session forever, the context window bloats and topics get tangled. xangi uses a two-layer approach to start fresh sessions:
 
-### 1. Idle session reset (default ON, 4h)
+### 1. Idle session reset (default ON, 12h)
 
-When the next message arrives after `LINE_IDLE_RESET_HOURS` (default `4`) of inactivity, the active session is archived via `archiveSession()` and a new one is created. The conversation history in `logs/sessions/<sessionId>.jsonl` is preserved, so nothing is truly lost.
+When the next message arrives after `LINE_IDLE_RESET_HOURS` (default `12`) of inactivity, the active session is archived via `archiveSession()` and a new one is created. The conversation history in `logs/sessions/<sessionId>.jsonl` is preserved, so nothing is truly lost.
 
-- Kids' conversations naturally cluster around school / sleep / meal patterns at multi-hour intervals — 4 h is a good cut.
+- Conversations separated by half a day or more are treated as separate sessions.
 - Decimal values supported (`LINE_IDLE_RESET_HOURS=0.5` for 30 minutes, handy for testing).
 - `LINE_IDLE_RESET_ENABLED=false` disables it entirely (single endless session).
 
