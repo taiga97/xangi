@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync, realpathSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import {
@@ -19,7 +19,7 @@ describe('extractFilePaths', () => {
   let imageAbs: string;
 
   beforeEach(() => {
-    workspace = mkdtempSync(join(tmpdir(), 'xangi-ws-'));
+    workspace = realpathSync(mkdtempSync(join(tmpdir(), 'xangi-ws-')));
     outputsDir = join(workspace, 'outputs');
     mkdirSync(outputsDir, { recursive: true });
     imageAbs = join(outputsDir, 'reckless_hero.png');
@@ -136,12 +136,12 @@ describe('extractFilePaths', () => {
     const tmpImg = join(tmpdir(), `xangi-tmpimg-${Date.now()}.png`);
     writeFileSync(tmpImg, 'x');
     const text = `MEDIA:${tmpImg}`;
-    expect(extractFilePaths(text, workspace)).toEqual([tmpImg]);
+    expect(extractFilePaths(text, workspace)).toEqual([realpathSync(tmpImg)]);
     rmSync(tmpImg, { force: true });
   });
 
   it('honors ATTACHMENT_ALLOWED_DIRS for extra roots', () => {
-    const extraDir = mkdtempSync(join(tmpdir(), 'xangi-extra-'));
+    const extraDir = realpathSync(mkdtempSync(join(tmpdir(), 'xangi-extra-')));
     const f = join(extraDir, 'pic.png');
     writeFileSync(f, 'x');
     const prev = process.env.ATTACHMENT_ALLOWED_DIRS;
@@ -163,7 +163,7 @@ describe('resolveAttachmentPath', () => {
   let imageAbs: string;
 
   beforeEach(() => {
-    workspace = mkdtempSync(join(tmpdir(), 'xangi-ws2-'));
+    workspace = realpathSync(mkdtempSync(join(tmpdir(), 'xangi-ws2-')));
     mkdirSync(join(workspace, 'outputs'), { recursive: true });
     imageAbs = join(workspace, 'outputs', 'pic.png');
     writeFileSync(imageAbs, 'x');
@@ -245,7 +245,7 @@ describe('hasUnresolvedMediaMarker', () => {
   let imageAbs: string;
 
   beforeEach(() => {
-    workspace = mkdtempSync(join(tmpdir(), 'xangi-ws-'));
+    workspace = realpathSync(mkdtempSync(join(tmpdir(), 'xangi-ws-')));
     outputsDir = join(workspace, 'outputs');
     mkdirSync(outputsDir, { recursive: true });
     imageAbs = join(outputsDir, 'real.png');
@@ -329,7 +329,7 @@ describe('buildAttachmentResult', () => {
   let imageAbs: string;
 
   beforeEach(() => {
-    workspace = mkdtempSync(join(tmpdir(), 'xangi-ws-'));
+    workspace = realpathSync(mkdtempSync(join(tmpdir(), 'xangi-ws-')));
     outputsDir = join(workspace, 'outputs');
     mkdirSync(outputsDir, { recursive: true });
     imageAbs = join(outputsDir, 'real.png');

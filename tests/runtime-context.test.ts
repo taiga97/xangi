@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { execFileSync } from 'child_process';
-import { mkdtempSync, rmSync } from 'fs';
+import { mkdtempSync, realpathSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
@@ -39,7 +39,7 @@ describe('runtime-context', () => {
   });
 
   function mkTemp(prefix: string): string {
-    const dir = mkdtempSync(join(tmpdir(), prefix));
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), prefix)));
     tempDirs.push(dir);
     return dir;
   }
