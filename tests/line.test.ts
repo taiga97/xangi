@@ -4,6 +4,7 @@ import {
   snapLoadingSeconds,
   isResetCommand,
   hasSessionGoneIdle,
+  lineTextMessages,
 } from '../src/line.js';
 
 describe('appendLineCompletionSummary', () => {
@@ -174,5 +175,37 @@ describe('hasSessionGoneIdle', () => {
   it('handles exactly threshold boundary as true (>= semantics)', () => {
     const exactly = new Date(now - FOUR_HOURS_MS).toISOString();
     expect(hasSessionGoneIdle(exactly, FOUR_HOURS_MS, now)).toBe(true);
+  });
+});
+
+describe('lineTextMessages', () => {
+  it('keeps a short reply as a single text message', () => {
+    expect(lineTextMessages('やったよ')).toEqual([{ type: 'text', text: 'やったよ' }]);
+  });
+
+  it('splits a newline separated reply past the 5000 char limit', () => {
+    const long = Array.from({ length: 900 }, (_, i) => `line ${i}`).join('\n');
+    expect(long.length).toBeGreaterThan(5000);
+
+    const messages = lineTextMessages(long);
+
+    expect(messages.length).toBeGreaterThan(1);
+    for (const message of messages) {
+      expect(message.type).toBe('text');
+      expect(message.text.length).toBeLessThanOrEqual(5000);
+    }
+  });
+
+  it('splits a reply that has no line breaks to split on', () => {
+    const messages = lineTextMessages('x'.repeat(12000));
+
+    expect(messages).toHaveLength(3);
+    for (const message of messages) {
+      expect(message.text.length).toBeLessThanOrEqual(5000);
+    }
+  });
+
+  it('caps at the 5 message objects allowed per request', () => {
+    expect(lineTextMessages('x'.repeat(5000 * 8))).toHaveLength(5);
   });
 });

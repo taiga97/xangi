@@ -36,6 +36,9 @@ const LINE_CONTEXT_PREFIX = 'line:';
 // LINE text message は 5000 chars 制限 (公式仕様)
 const LINE_TEXT_MESSAGE_MAX = 5000;
 
+// reply / push 1 リクエストで送れる message object は 5 件まで (公式仕様)
+const LINE_MESSAGES_PER_REQUEST_MAX = 5;
+
 export function appendLineCompletionSummary(
   text: string,
   summary: string | undefined,
@@ -66,6 +69,19 @@ const LINE_RESET_TEXT_PATTERNS_DEFAULT: readonly string[] = ['/reset', '/new', '
 const RESET_REPLY_TEXT = '最初からお話するね！何かあった？';
 
 const ERROR_FALLBACK_TEXT = 'ごめんなさい、ちょっと調子わるいみたい…';
+
+/**
+ * テキストを LINE の 1 リクエストに収まる text message 配列へ変換する。
+ *
+ * 5000 chars を超えたテキストをそのまま 1 通で送ると LINE API に拒否され、
+ * 返信が届かないまま「無反応」に見える。`splitMessage` で分割し、1 リクエスト
+ * あたりの message object 上限 5 件までに収める。
+ */
+export function lineTextMessages(text: string): Array<{ type: 'text'; text: string }> {
+  return splitMessage(text, LINE_TEXT_MESSAGE_MAX)
+    .slice(0, LINE_MESSAGES_PER_REQUEST_MAX)
+    .map((chunk) => ({ type: 'text' as const, text: chunk }));
+}
 
 /**
  * 同一 contextKey のターンを直列化するキュー。
@@ -639,9 +655,7 @@ export async function handleLineEvent(event: webhook.Event, ctx: HandlerContext)
       const result = await executeModelsCommand(modelsBackend, ctx.resolver);
       await ctx.client.replyMessage({
         replyToken,
-        messages: splitMessage(result, LINE_TEXT_MESSAGE_MAX)
-          .slice(0, 5)
-          .map((chunk) => ({ type: 'text' as const, text: chunk })),
+        messages: lineTextMessages(result),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'モデル一覧の取得に失敗しました';
@@ -803,12 +817,12 @@ export async function handleLineEvent(event: webhook.Event, ctx: HandlerContext)
       if (usePush) {
         await ctx.client.pushMessage({
           to: userId,
-          messages: [{ type: 'text', text: replyText }],
+          messages: lineTextMessages(replyText),
         });
       } else {
         await ctx.client.replyMessage({
           replyToken,
-          messages: [{ type: 'text', text: replyText }],
+          messages: lineTextMessages(replyText),
         });
       }
     } catch (sendErr) {
@@ -818,7 +832,7 @@ export async function handleLineEvent(event: webhook.Event, ctx: HandlerContext)
         try {
           await ctx.client.pushMessage({
             to: userId,
-            messages: [{ type: 'text', text: replyText }],
+            messages: lineTextMessages(replyText),
           });
         } catch (pushErr) {
           console.error('[xangi-line] push fallback also failed:', pushErr);
